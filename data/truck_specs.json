@@ -1,0 +1,20 @@
+{
+  "Mercedes eActros": {
+    "Manufacturer": "Mercedes-Benz",
+    "Model": "eActros 600",
+    "Battery_capacity_kWh": 600,
+    "Consumption_kWh_per_km": 1.2,
+    "Range_km": 500,
+    "Range_80%_km": 400,
+    "Battery_capacity_80%_kWh": 480
+  },
+  "MAN eGTX": {
+    "Manufacturer": "MAN",
+    "Model": "eGTX",
+    "Battery_capacity_kWh": 480,
+    "Consumption_kWh_per_km": 1.2,
+    "Range_km": 400,
+    "Range_80%_km": 320,
+    "Battery_capacity_80%_kWh": 384
+  }
+}

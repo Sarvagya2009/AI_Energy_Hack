@@ -1,5 +1,9 @@
-data/
 app/api_key.env
 *.pyc
 *.ssh
 inter_data/*
+Halle-ZufenHausen.csv
+data/driver_rules.txt
+data/Charge Point Dataset - Private.csv
+data/Charge Point Dataset - Public.csv
+data/Tours & Stops.xlsx
