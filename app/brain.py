@@ -109,7 +109,7 @@ def compute_schedule(distance_matrix: pd.DataFrame,
             truck_state.currentTime += timedelta(minutes=travel_time_to_charger)
 
             # Charging
-            # TODO charges to full for simplicity. Adapt to need (check how much needed to reach next station or till end destination)
+            # charges to full for simplicity. Adapt to need (check how much needed to reach next station or till end destination)
             charge_needed = battery_capacity - truck_state.currentBattery
             charge_time_min = (charge_needed / station['max_power_kW']) * 60
             charging_cost = charge_needed * station['price_€/kWh']
@@ -172,3 +172,7 @@ if __name__ == "__main__":
     plan = compute_schedule(distance_matrix, charging_stations, origin='Ingolstadt', stops=['Halle'], tour=['Ingolstadt', 'Halle', 'Ingolstadt'], truck_spec=truck_spec)
     for action in plan:
         print(action)
+   # df = pd.DataFrame(plan)
+   # print(df)
+
+    
