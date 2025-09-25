@@ -1,10 +1,10 @@
 # AI E-Truck Dispatcher
 
-An intelligent FastAPI-based route optimization system for electric trucks that automatically plans optimal routes, manages battery consumption, and schedules charging stops.
+An intelligent FastAPI-based route optimization system for electric trucks that automatically plans optimal routes, manages battery consumption, and schedules charging stops along with taking into account the base EU regulations of the driver rest (no daily driving of >9 hours, 45 mins break after 4.5 hours of driving).
 
 ## 🚛 Overview
 
-The AI E-Truck Dispatcher is a comprehensive solution designed to solve the complex logistics challenges of electric truck fleet management. The system considers battery capacity, charging station availability, route optimization, and real-time energy consumption to provide optimal delivery routes.
+The AI E-Truck Dispatcher is a comprehensive solution designed to solve the complex logistics challenges of electric truck fleet management. The system considers battery capacity, charging station availability, route optimization, driver rest periods, real-time energy consumption to provide optimal delivery routes.
 
 ### Key Features
 
@@ -14,7 +14,8 @@ The AI E-Truck Dispatcher is a comprehensive solution designed to solve the comp
 - **Multiple Truck Models**: Supports various electric truck specifications (Mercedes eActros, MAN eGTX)
 - **Real-time Planning**: Considers start times and provides detailed scheduling
 - **Cost Optimization**: Balances between time-optimal and cost-optimal charging strategies
-- **Geographic Coverage**: Supports German cities and European charging networks
+- **Geographic Coverage**: Supports German cities and charging networks
+- **Driver rest periods**: 
 
 ## 🏗️ Architecture
 
@@ -23,9 +24,9 @@ AI_Energy_Hack/
 ├── app/
 │   ├── main.py                 # FastAPI application and endpoints
 │   ├── brain.py               # Core optimization algorithms and scheduling logic
-│   ├── Matrix_data_process.py # Distance matrix generation and data processing
+│   ├── Matrix_data_process.py # Distance matrix generation and input data processing 
 │   ├── pydantic_config.py     # API models and request/response schemas
-│   └── config.py              # Configuration and API keys
+│   └── config.py              # Configuration and API URLS
 ├── data/
 │   ├── city_choices.json      # Available cities with coordinates
 │   ├── truck_specs.json       # Electric truck specifications
@@ -148,7 +149,7 @@ The system currently supports the following German cities:
 
 ### Charging Strategy
 
-The system supports two charging optimization strategies:
+The system supports two charging optimization strategies. (this needs work as distance must also be taken into account when planning charging stations):
 - **Time-optimal**: Prioritizes charging stations with highest power output
 - **Cost-optimal**: Prioritizes charging stations with lowest cost per kWh
 
@@ -218,67 +219,3 @@ curl -X POST "http://localhost:8000/optimize-route" \
 - `validate_input()`: Input validation and data loading
 - `input_from_user()`: Distance matrix generation
 - `transform()`: Data transformation for API responses
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **TomTom API Key Missing**
-   ```
-   Error: Could not load TomTom API key
-   ```
-   Solution: Ensure `app/api_key.env` exists with valid `TOMTOM_KEY`
-
-2. **Invalid City Names**
-   ```
-   ValueError: Invalid city choice
-   ```
-   Solution: Use only supported cities from `data/city_choices.json`
-
-3. **Connection Errors**
-   ```
-   Error: Could not connect to API
-   ```
-   Solution: Ensure the server is running with `uvicorn app.main:app --reload`
-
-### Debug Mode
-
-Run the server in debug mode for detailed logging:
-```bash
-uvicorn app.main:app --reload --log-level debug
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow PEP 8 style guidelines
-- Add type hints to all functions
-- Include docstrings for new modules and functions
-- Test new features with sample data
-- Update documentation for API changes
-
-## 📄 License
-
-This project is part of an AI Energy Hackathon and is intended for educational and research purposes.
-
-## 🙏 Acknowledgments
-
-- TomTom API for routing services
-- Open charging station databases
-- FastAPI framework for rapid API development
-- Electric truck manufacturers for specifications
-
-## 📞 Support
-
-For questions and support, please create an issue in the GitHub repository.
-
----
-
-*Built with ❤️ for sustainable logistics and the future of electric transportation.*
