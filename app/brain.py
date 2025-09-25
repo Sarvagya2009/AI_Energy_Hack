@@ -21,6 +21,11 @@ class State(BaseModel):
     currentBattery: int = 100
     totalCost: float = 0.0
     plan: List[str] = Field(default_factory=list) # A list of actions taken so far 
+    driving_time_since_break= 0
+    total_daily_driving_time= 0
+    total_tour_break_time= 0
+    
+    
 
 def pick_station_on_strategy(charging_stations, strategy= "time-optimal"):
     """ Pick strategy to select charging station to either minimize charging time or minmise cost of charging 
