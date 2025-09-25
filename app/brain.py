@@ -147,28 +147,3 @@ def compute_schedule(distance_matrix: pd.DataFrame,
         else:
             truck_state.currentTime += timedelta(minutes=travel_time)+ timedelta(minutes=time_stoppage_at_nodes)
     return truck_state
-
-
-
-if __name__ == "__main__":
-    # Example usage
-    distance_matrix = pd.DataFrame({
-        'Ingolstadt': {'Ingolstadt': 0, 'Halle': 300, 'StationA': 50, 'StationB': 150},
-        'Halle': {'Ingolstadt': 300, 'Halle': 0, 'StationA': 250, 'StationB': 100},
-        'StationA': {'Ingolstadt': 50, 'Halle': 250, 'StationA': 0, 'StationB': 120},
-        'StationB': {'Ingolstadt': 150, 'Halle': 100, 'StationA': 120, 'StationB': 0},
-    })
-    charging_stations = pd.DataFrame([
-        {'ID': 'StationA', 'latitude': 48.5, 'longitude': 11.5, 'max_power_kW': 150, 'price_€/kWh': 0.30},
-        {'ID': 'StationB', 'latitude': 49.0, 'longitude': 11.0, 'max_power_kW': 350, 'price_€/kWh': 0.40},
-    ])
-    truck_spec = {
-        'Model': 'Mercedes eActros',
-        'Battery_capacity_kWh': 400,
-        'Battery_capacity_80%_kWh': 320,
-        'Consumption_rate_kWh_per_km': consumption_rate,
-        'Max_range_km': 320 / consumption_rate
-    }
-    plan = compute_schedule(distance_matrix, charging_stations, origin='Ingolstadt', stops=['Halle'], tour=['Ingolstadt', 'Halle', 'Ingolstadt'], truck_spec=truck_spec)
-    for action in plan:
-        print(action)
