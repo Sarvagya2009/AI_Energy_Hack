@@ -10,6 +10,11 @@ consumption_rate = 1.2  # kWh/km
 time_stoppage_at_nodes= 45 # driver takes break at each node except final destination
 driving_cost_per_km = 0.05 # Driving cost per km
 
+# Driver Constraints (in minutes)
+MAX_CONTINUOUS_DRIVE = 4 * 60       # 4 hours
+MANDATORY_BREAK_TIME = 45       # 45 minutes
+MAX_DAILY_DRIVE = 9 * 60        # 9 hours
+
 class State(BaseModel):
     currentTime: datetime = Field(default_factory=lambda: datetime(2025, 1, 1, 9, 0))
     currentLocation: str = ""
@@ -84,68 +89,106 @@ def compute_schedule(distance_matrix: pd.DataFrame,
         energy_needed = dist * consumption_rate
         leg_cost = dist * driving_cost_per_km
 
-        # Battery check
-        while truck_state.currentBattery - energy_needed < battery_min:
-            # Pick nearest station
-            station = nearest_station(origin, distance_matrix, charging_stations, charging_station_in_path, truck_state, strategy="time-optimal")
-            charging_station_in_path.append(station['station_name'])
-            detour_dist = distance_matrix.loc[origin, station['station_name']]
-            detour_energy = detour_dist * consumption_rate
-            detour_cost = detour_dist * driving_cost_per_km
-            travel_time_to_charger = time_matrix.loc[origin, station['station_name']]
+        
+        while True:
+            # --- Check for driver break before starting a drive ---
+        # This is a hard constraint for continuous driving, but it is skipped on the first leg.
+            if i > 0 and truck_state.driving_time_since_break + travel_time > MAX_CONTINUOUS_DRIVE:
+                # Check if total daily driving time will be exceeded
+                if truck_state.total_daily_driving_time + travel_time > MAX_DAILY_DRIVE:
+                    # End the day's driving and take a long rest
+                    truck_state.plan.append({
+                        'action': 'daily_rest',
+                        'date': truck_state.currentTime.strftime("%Y-%m-%d"),
+                        'from': origin,
+                        'to': origin,
+                        'duration_min': "overnight",
+                        'start': truck_state.currentTime.strftime("%H:%M"),
+                        'end': (truck_state.currentTime + timedelta(hours=8)).strftime("%H:%M"), # Assuming an 8-hour rest
+                    
+                    })
+                    truck_state.currentTime += timedelta(hours=8)
+                    truck_state.total_daily_driving_time = 0 # Reset daily timer for the next day
+                    truck_state.driving_time_since_break = 0
+                    truck_state.total_tour_break_time += 8 * 60
+                else:
+                    # Take a mandatory 45-minute break
+                    truck_state.plan.append({
+                        'action': 'driver_break',
+                        'date': truck_state.currentTime.strftime("%Y-%m-%d"),
+                        'from': origin,
+                        'to': origin,
+                        'duration_min': MANDATORY_BREAK_TIME,
+                        'start': truck_state.currentTime.strftime("%H:%M"),
+                        'end': (truck_state.currentTime + timedelta(minutes=MANDATORY_BREAK_TIME)).strftime("%H:%M"),
+                    
+                    })
+                    truck_state.currentTime += timedelta(minutes=MANDATORY_BREAK_TIME)
+                    truck_state.total_tour_break_time += MANDATORY_BREAK_TIME
+                    truck_state.driving_time_since_break = 0
 
-            # Drive to charger
+            # Battery check
+            if truck_state.currentBattery - energy_needed < battery_min:
+                # Pick nearest station
+                station = nearest_station(origin, distance_matrix, charging_stations, charging_station_in_path, truck_state, strategy="time-optimal")
+                charging_station_in_path.append(station['station_name'])
+                detour_dist = distance_matrix.loc[origin, station['station_name']]
+                detour_energy = detour_dist * consumption_rate
+                detour_cost = detour_dist * driving_cost_per_km
+                travel_time_to_charger = time_matrix.loc[origin, station['station_name']]
+
+                # Drive to charger
+                truck_state.plan.append({
+                    'action': 'drive_to_charger',
+                    'from': origin,
+                    'to': station['station_name'],
+                    'start': truck_state.currentTime.strftime("%H:%M"),
+                    'end': (truck_state.currentTime + timedelta(minutes=travel_time_to_charger)).strftime("%H:%M"),
+                    'SOC_kWh': truck_state.currentBattery - detour_energy,
+                    'distance_km': detour_dist,
+                    'cost_€': detour_cost
+                })
+                truck_state.currentBattery -= detour_energy
+                truck_state.currentTime += timedelta(minutes=travel_time_to_charger)
+
+                # Charging
+                # charges to full for simplicity. Adapt to need (check how much needed to reach next station or till end destination)
+                charge_needed = battery_capacity - truck_state.currentBattery
+                charge_time_min = (charge_needed / station['max_power_kW']) * 60
+                charging_cost = charge_needed * station['price_€/kWh']
+                truck_state.currentBattery = battery_capacity
+
+                truck_state.plan.append({
+                    'action': 'charging',
+                    'from': station['station_name'],
+                    'to': station['station_name'],
+                    'start': truck_state.currentTime.strftime("%H:%M"),
+                    'end': (truck_state.currentTime + timedelta(minutes=charge_time_min)).strftime("%H:%M"),
+                    'SOC_kWh': truck_state.currentBattery,
+                    'distance_km': np.nan,
+                    'cost_€': charging_cost
+                })
+                truck_state.currentTime += timedelta(minutes=charge_time_min)
+                origin = station['station_name']
+                truck_state.currentLocation = origin
+                energy_needed= distance_matrix.loc[origin, dest]* consumption_rate
+        
             truck_state.plan.append({
-                'action': 'drive_to_charger',
+                'action': 'drive_to_load/unload',
                 'from': origin,
-                'to': station['station_name'],
+                'to': dest,
                 'start': truck_state.currentTime.strftime("%H:%M"),
-                'end': (truck_state.currentTime + timedelta(minutes=travel_time_to_charger)).strftime("%H:%M"),
-                'SOC_kWh': truck_state.currentBattery - detour_energy,
-                'distance_km': detour_dist,
-                'cost_€': detour_cost
+                'end': (truck_state.currentTime + timedelta(minutes=travel_time)).strftime("%H:%M"),
+                'SOC_kWh': truck_state.currentBattery - energy_needed,
+                'distance_km': dist,
+                'cost_€': leg_cost
             })
-            truck_state.currentBattery -= detour_energy
-            truck_state.currentTime += timedelta(minutes=travel_time_to_charger)
-
-            # Charging
-            # charges to full for simplicity. Adapt to need (check how much needed to reach next station or till end destination)
-            charge_needed = battery_capacity - truck_state.currentBattery
-            charge_time_min = (charge_needed / station['max_power_kW']) * 60
-            charging_cost = charge_needed * station['price_€/kWh']
-            truck_state.currentBattery = battery_capacity
-
-            truck_state.plan.append({
-                'action': 'charging',
-                'from': station['station_name'],
-                'to': station['station_name'],
-                'start': truck_state.currentTime.strftime("%H:%M"),
-                'end': (truck_state.currentTime + timedelta(minutes=charge_time_min)).strftime("%H:%M"),
-                'SOC_kWh': truck_state.currentBattery,
-                'distance_km': np.nan,
-                'cost_€': charging_cost
-            })
-            truck_state.currentTime += timedelta(minutes=charge_time_min)
-            origin = station['station_name']
-            truck_state.currentLocation = origin
-            energy_needed= distance_matrix.loc[origin, dest]* consumption_rate
-    
-        truck_state.plan.append({
-            'action': 'drive_to_load/unload',
-            'from': origin,
-            'to': dest,
-            'start': truck_state.currentTime.strftime("%H:%M"),
-            'end': (truck_state.currentTime + timedelta(minutes=travel_time)).strftime("%H:%M"),
-            'SOC_kWh': truck_state.currentBattery - energy_needed,
-            'distance_km': dist,
-            'cost_€': leg_cost
-        })
-        charging_station_in_path= [] # once the truck drives to a customer location, it can pick the same charging stations again
-        truck_state.currentBattery -= energy_needed
-        if dest== tour[-1]:  # if last destination, no need to add stoppage time
-            truck_state.currentTime += timedelta(minutes=travel_time)
-        else:
-            truck_state.currentTime += timedelta(minutes=travel_time)+ timedelta(minutes=time_stoppage_at_nodes)
+            charging_station_in_path= [] # once the truck drives to a customer location, it can pick the same charging stations again
+            truck_state.currentBattery -= energy_needed
+            if dest== tour[-1]:  # if last destination, no need to add stoppage time
+                truck_state.currentTime += timedelta(minutes=travel_time)
+            else:
+                truck_state.currentTime += timedelta(minutes=travel_time)+ timedelta(minutes=time_stoppage_at_nodes)
     return truck_state
 
 
