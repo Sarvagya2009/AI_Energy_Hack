@@ -112,7 +112,7 @@ Optimizes the route for an electric truck considering battery constraints and ch
       "action": "charge/rest",
       "duration": 60,
       "SOC": 80,
-      "why": "Needed to charge to reach next destination"
+      "why": ""
     }
   ],
   "total_distance": 250.5,
